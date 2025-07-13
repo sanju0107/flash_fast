@@ -1,12 +1,12 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import List
-import openai
 import os
 import asyncio
+from openai import OpenAI
 
-# Load OpenAI API key from environment
-openai.api_key = os.getenv("OPENAI_API_KEY", "your-openai-api-key")
+# Set up OpenAI client
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY", "your-openai-api-key"))
 
 app = FastAPI()
 
@@ -17,18 +17,16 @@ class Flashcard(BaseModel):
 class FlashcardInput(BaseModel):
     text: str
 
-# Utility: Chunk text into ~100-word blocks
+# Chunk text utility
 def chunk_text(text: str, words_per_chunk: int = 100):
     words = text.split()
     return [' '.join(words[i:i+words_per_chunk]) for i in range(0, len(words), words_per_chunk)]
 
-# Estimate importance score (simple keyword-based logic)
+# Simple importance scoring
 def estimate_importance_score(chunk: str) -> float:
     keywords = ['climate', 'geopolitics', 'conflict', 'development', 'population', 'resources']
     score = sum(1 for word in keywords if word in chunk.lower())
     return min(1.0, 0.3 + 0.1 * score)
-
-# Decide number of flashcards based on importance
 
 def decide_flashcard_count(score: float) -> int:
     if score <= 0.4:
@@ -40,7 +38,7 @@ def decide_flashcard_count(score: float) -> int:
     else:
         return 6
 
-# Generate flashcards using OpenAI GPT-4
+# New SDK-compliant async GPT function
 async def gpt_generate_flashcards(chunk: str, n: int) -> List[dict]:
     prompt = f"""
     You are a UPSC flashcard generator.
@@ -54,7 +52,7 @@ async def gpt_generate_flashcards(chunk: str, n: int) -> List[dict]:
     """
     
     try:
-        response = await openai.ChatCompletion.acreate(
+        response = await client.chat.completions.create(
             model="gpt-4-turbo",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.4
