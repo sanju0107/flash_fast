@@ -87,3 +87,8 @@ async def generate_flashcards(data: FlashcardInput):
         all_flashcards.extend(flashcards)
 
     return {"flashcards": all_flashcards}
+
+# ✅ Health check/root route for Render or browsers
+@app.get("/")
+def root():
+    return {"message": "Flashcard API is running!"}
