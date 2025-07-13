@@ -3,10 +3,10 @@ from pydantic import BaseModel
 from typing import List
 import os
 import asyncio
-from openai import OpenAI
+from openai import AsyncOpenAI
 
-# Set up OpenAI client
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY", "your-openai-api-key"))
+# Initialize AsyncOpenAI client with environment variable
+client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY", "your-openai-api-key"))
 
 app = FastAPI()
 
@@ -17,17 +17,18 @@ class Flashcard(BaseModel):
 class FlashcardInput(BaseModel):
     text: str
 
-# Chunk text utility
+# Chunk long text into smaller ~100-word blocks
 def chunk_text(text: str, words_per_chunk: int = 100):
     words = text.split()
-    return [' '.join(words[i:i+words_per_chunk]) for i in range(0, len(words), words_per_chunk)]
+    return [' '.join(words[i:i + words_per_chunk]) for i in range(0, len(words), words_per_chunk)]
 
-# Simple importance scoring
+# Estimate importance using keywords
 def estimate_importance_score(chunk: str) -> float:
     keywords = ['climate', 'geopolitics', 'conflict', 'development', 'population', 'resources']
     score = sum(1 for word in keywords if word in chunk.lower())
     return min(1.0, 0.3 + 0.1 * score)
 
+# Decide number of flashcards based on importance
 def decide_flashcard_count(score: float) -> int:
     if score <= 0.4:
         return 3
@@ -38,7 +39,7 @@ def decide_flashcard_count(score: float) -> int:
     else:
         return 6
 
-# New SDK-compliant async GPT function
+# Async GPT-based flashcard generation
 async def gpt_generate_flashcards(chunk: str, n: int) -> List[dict]:
     prompt = f"""
     You are a UPSC flashcard generator.
@@ -87,8 +88,3 @@ async def generate_flashcards(data: FlashcardInput):
         all_flashcards.extend(flashcards)
 
     return {"flashcards": all_flashcards}
-
-# ✅ Health check/root route for Render or browsers
-@app.get("/")
-def root():
-    return {"message": "Flashcard API is running!"}
